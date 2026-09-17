@@ -1,38 +1,27 @@
-﻿namespace Claims.Auditing
+﻿using System.Threading.Channels;
+
+namespace Claims.Auditing;
+
+public class Auditer : IAuditService 
 {
-    public class Auditer
+    private readonly ChannelWriter<AuditMessage> _channelWriter;
+
+    public Auditer(ChannelWriter<AuditMessage> channelWriter)
     {
-        private readonly AuditContext _auditContext;
+        _channelWriter = channelWriter;
+    }
 
-        public Auditer(AuditContext auditContext)
-        {
-            _auditContext = auditContext;
-        }
+    public async Task AuditClaim(string id, string httpRequestType)
+    {
+        var message = new AuditMessage(id, "Claim", httpRequestType);
+        await _channelWriter.WriteAsync(message);
+    }
 
-        public void AuditClaim(string id, string httpRequestType)
-        {
-            var claimAudit = new ClaimAudit()
-            {
-                Created = DateTime.Now,
-                HttpRequestType = httpRequestType,
-                ClaimId = id
-            };
-
-            _auditContext.Add(claimAudit);
-            _auditContext.SaveChanges();
-        }
-        
-        public void AuditCover(string id, string httpRequestType)
-        {
-            var coverAudit = new CoverAudit()
-            {
-                Created = DateTime.Now,
-                HttpRequestType = httpRequestType,
-                CoverId = id
-            };
-
-            _auditContext.Add(coverAudit);
-            _auditContext.SaveChanges();
-        }
+    public async Task AuditCover(string id, string httpRequestType)
+    {
+        var message = new AuditMessage(id, "Cover", httpRequestType);
+        await _channelWriter.WriteAsync(message);
     }
 }
+
+public record AuditMessage(string EntityId, string EntityType, string HttpRequestType);

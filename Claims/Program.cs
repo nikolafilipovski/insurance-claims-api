@@ -1,9 +1,10 @@
+using Claims;
 using Claims.Auditing;
-using Claims.Controllers;
 using Microsoft.EntityFrameworkCore;
 using MongoDB.Driver;
 using System.Runtime.InteropServices;
 using System.Text.Json.Serialization;
+using System.Threading.Channels;
 using Testcontainers.MongoDb;
 using Testcontainers.MsSql;
 
@@ -41,6 +42,23 @@ builder.Services.AddDbContext<ClaimsContext>(options =>
     var database = client.GetDatabase(builder.Configuration["MongoDb:DatabaseName"]); // Use a default/test database name
     options.UseMongoDB(database.Client, database.DatabaseNamespace.DatabaseName);
 });
+
+// Services
+builder.Services.AddScoped<IClaimsService, ClaimsService>();
+builder.Services.AddScoped<ICoversService, CoversService>();
+
+// Create an unbounded channel
+var auditChannel = Channel.CreateUnbounded<AuditMessage>();
+
+// Register the Producer and Consumer halves of the channel
+builder.Services.AddSingleton(auditChannel.Writer);
+builder.Services.AddSingleton(auditChannel.Reader);
+
+// Register the Background Worker to run continuously
+builder.Services.AddHostedService<AuditBackgroundWorker>();
+
+// Register the Auditer Service
+builder.Services.AddScoped<IAuditService, Auditer>();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
